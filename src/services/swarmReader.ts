@@ -76,7 +76,7 @@ export async function fetchArticleFromSwarm(
     const article = deserializeArticle(jsonText);
     return { article, source: 'swarm-bee' };
   } catch (sdkError: any) {
-    // 2. Direct Swarm Gateway fallback (e.g. if Bee API is a read-only Swarm gateway)
+    // 2. Direct Swarm Gateway fallback (e.g. if Bee API is a remote read-only gateway)
     try {
       const res = await fetch(`${gatewayUrl}/bzz/${cleanRef}/`, {
         headers: { Accept: 'application/json, text/plain' },
@@ -103,15 +103,45 @@ export async function resolveAndFetchArticleFromFeed(
   topicInput: string,
   customBeeUrl?: string
 ): Promise<FeedResolveAndFetchResult> {
-  const feedUpdate = await resolveLatestFeedReference(ownerAddress, topicInput, customBeeUrl);
-  const { article, source } = await fetchArticleFromSwarm(feedUpdate.reference, customBeeUrl);
+  const cleanOwner = ownerAddress.trim().replace(/^0x/, '');
+  const config = getSavedSwarmConfig();
+  const gatewayUrl = config.gatewayUrl.trim().replace(/\/+$/, '');
+  const topic = deriveTopic(topicInput);
 
-  return {
-    article,
-    reference: feedUpdate.reference,
-    owner: ownerAddress,
-    topic: topicInput,
-    feedIndex: feedUpdate.feedIndex,
-    source,
-  };
+  try {
+    const feedUpdate = await resolveLatestFeedReference(ownerAddress, topicInput, customBeeUrl);
+    const { article, source } = await fetchArticleFromSwarm(feedUpdate.reference, customBeeUrl);
+
+    return {
+      article,
+      reference: feedUpdate.reference,
+      owner: ownerAddress,
+      topic: topicInput,
+      feedIndex: feedUpdate.feedIndex,
+      source,
+    };
+  } catch (primaryErr: any) {
+    // Secondary gateway fallback: Try direct gateway /bzz-feed/ endpoint
+    try {
+      const res = await fetch(`${gatewayUrl}/bzz-feed/0x${cleanOwner}/${topic.toHex()}/`, {
+        headers: { Accept: 'application/json, text/plain' },
+      });
+      if (res.ok) {
+        const text = await res.text();
+        const article = deserializeArticle(text);
+        const refHeader = res.headers.get('swarm-reference') || 'gateway-feed-reference';
+        return {
+          article,
+          reference: refHeader,
+          owner: ownerAddress,
+          topic: topicInput,
+          source: 'swarm-gateway',
+        };
+      }
+    } catch {
+      // Fall through
+    }
+
+    throw primaryErr;
+  }
 }

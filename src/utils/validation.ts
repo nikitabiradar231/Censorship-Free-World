@@ -69,3 +69,4 @@ export function deserializeArticle(jsonString: string): Article {
   }
   return parsed as Article;
 }
+

@@ -40,6 +40,7 @@ export const App: React.FC = () => {
               element={<Publish onOpenKeyModal={() => setKeyModalOpen(true)} />}
             />
             <Route path="/read" element={<Reader />} />
+            <Route path="/read/:owner/:topic" element={<Reader />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/security" element={<Security />} />
             <Route path="*" element={<Navigate to="/" replace />} />

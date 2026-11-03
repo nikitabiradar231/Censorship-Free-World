@@ -113,3 +113,4 @@ export const BeeStatus: React.FC<BeeStatusProps> = ({
     </div>
   );
 };
+

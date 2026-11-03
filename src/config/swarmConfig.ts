@@ -65,3 +65,4 @@ export function resetSwarmConfig(): SwarmConfig {
     postageBatchId: DEFAULT_POSTAGE_BATCH_ID,
   };
 }
+

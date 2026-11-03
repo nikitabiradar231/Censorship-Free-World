@@ -52,3 +52,4 @@ describe('TEST 6: Swarm Content Upload', () => {
     expect(mockBee.data.upload).toHaveBeenCalledTimes(1);
   });
 });
+

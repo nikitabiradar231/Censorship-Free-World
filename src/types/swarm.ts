@@ -39,3 +39,4 @@ export interface HealthStatus {
   checkedAt: number;
   error?: string;
 }
+

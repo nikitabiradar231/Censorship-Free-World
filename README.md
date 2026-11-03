@@ -1,7 +1,8 @@
 # FreePress — Censorship-Resistant Publishing on Ethereum Swarm
 
 > **Tagline:** *"Your Voice. Your Content. No Single Point of Failure."*  
-> **Buildathon:** Road to Devcon XI / Devcon 8 Build Battle — *Censorship-Free World Challenge*
+> **Buildathon:** Road to Devcon XI / Devcon 8 Build Battle — *Censorship-Free World Challenge*  
+> **Repository:** [https://github.com/nikitabiradar231/Censorship-Free-World](https://github.com/nikitabiradar231/Censorship-Free-World)
 
 ---
 
@@ -29,42 +30,32 @@ Divya investigated a municipal water-supply scandal where industrial chemical ru
 
 ---
 
-## 2. Solution Overview: FreePress Architecture
+## 2. Architecture & System Flow
 
-FreePress solves Divya's problem by combining Ethereum Swarm's content-addressed chunk storage with cryptographically signed **Swarm Feeds** and a **100% static frontend application**.
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Publisher as Divya (Publisher)
+    participant Browser as FreePress Browser Client
+    participant Swarm as Ethereum Swarm Network
+    actor Reader as Citizen (Reader)
 
-```
-  ┌────────────────────────────────────────────────────────────────────────┐
-  │                           DIVYA (PUBLISHER)                            │
-  │                                                                        │
-  │   1. Drafts article locally in FreePress Editorial Interface           │
-  │   2. Encodes article as JSON & uploads chunk directly to Swarm         │
-  │      -> Returns Swarm BZZ Reference (e.g. bb53fb25...7652)             │
-  │   3. Signs Swarm Feed update locally in browser using private key      │
-  │      -> Maps deterministic Topic (e.g. divya-water-report) to Hash     │
-  │   4. Shares ONE permanent link: /#/read?owner=0x...&topic=0x...        │
-  └───────────────────────────────────┬────────────────────────────────────┘
-                                      │
-                                      ▼
-  ┌────────────────────────────────────────────────────────────────────────┐
-  │                    ETHEREUM SWARM STORAGE NETWORK                      │
-  │                                                                        │
-  │   • Content-Addressed Chunks: Stored immutably via BZZ protocol        │
-  │   • Postage Stamp Batches: Incentivize neighborhood chunk retention    │
-  │   • Single Owner Chunks (SOC): Cryptographically signed feed mailbox   │
-  │   • Feed Manifest: Gateway-resolvable mutable pointer                  │
-  └───────────────────────────────────▲────────────────────────────────────┘
-                                      │
-                                      │ (Direct peer retrieval)
-  ┌───────────────────────────────────┴────────────────────────────────────┐
-  │                         CITIZENS & READERS                             │
-  │                                                                        │
-  │   • Open the permanent link: /#/read?owner=0x...&topic=0x...           │
-  │   • FreePress queries Swarm directly for the latest Feed update        │
-  │   • Fetches content chunk from nearest Bee node / Swarm Gateway        │
-  │   • Renders verified investigative article                             │
-  │   • Zero wallet required • Zero centralized builder backend            │
-  └────────────────────────────────────────────────────────────────────────┘
+    Note over Publisher,Browser: Client-Side Sovereignty
+    Publisher->>Browser: Composes Article & Clicks "Publish"
+    Browser->>Browser: Serializes JSON & Generates Local ECDSA Keypair
+    Browser->>Swarm: Uploads Article Chunk via Postage Stamp Batch
+    Swarm-->>Browser: Returns Content-Addressed Hash (Swarm Reference)
+    Browser->>Browser: Signs Single Owner Chunk (SOC) Feed Update Locally
+    Browser->>Swarm: Posts Signed Feed Update (Owner + Topic -> New Hash)
+    Browser-->>Publisher: Displays Permanent Link: /#/read?owner=0x...&topic=0x...
+
+    Note over Reader,Swarm: Censorship-Resistant Reader Path
+    Reader->>Browser: Opens Permanent Reader Link
+    Browser->>Swarm: Queries Latest Feed Update for (Owner, Topic)
+    Swarm-->>Browser: Resolves Latest Swarm Reference
+    Browser->>Swarm: Downloads Article Content Chunk
+    Browser->>Browser: Safely Parses Markdown & Escapes XSS
+    Browser-->>Reader: Renders Verified Latest Article (No Wallet Required)
 ```
 
 ---
@@ -102,7 +93,7 @@ Storage persistence on Swarm is incentivized by postage stamp batches. Batches a
 | **TEST 6** | **Content uploaded to Swarm** | **6** | **PASS** | [`src/services/swarmUpload.ts`](file:///c:/Users/nikita/OneDrive/Desktop/Dev1/src/services/swarmUpload.ts): `uploadArticleToSwarm()` serializes article JSON, validates postage batch, and uploads chunk to Swarm returning 64-hex reference. |
 | **TEST 7** | **Shareable permanent Swarm address** | **5** | **PASS** | [`src/services/swarmFeed.ts`](file:///c:/Users/nikita/OneDrive/Desktop/Dev1/src/services/swarmFeed.ts): `generatePermanentFeedLinks()` produces deterministic reader URLs (`#/read?owner=0x...&topic=0x...`), native `bzz://<owner>/<topic>` addresses, and gateway feed endpoints. |
 | **TEST 8** | **No credentials in tracked files** | **6** | **PASS** | [`.gitignore`](file:///c:/Users/nikita/OneDrive/Desktop/Dev1/.gitignore) & [`.env.example`](file:///c:/Users/nikita/OneDrive/Desktop/Dev1/.env.example): Git repository scan confirms `.env` is ignored. `.env.example` contains placeholders only. Zero keys, secrets, or mnemonics in source code. |
-| **TOTAL** | **Automated Acceptance Criteria Score** | **80/80** | **PASS** | **All 7 automated test suites and 34 test cases passing (`npm test`).** |
+| **TOTAL** | **Automated Acceptance Criteria Score** | **80/80** | **PASS** | **All 10 automated test suites and 42 test cases passing (`npm test`).** |
 
 ---
 
@@ -111,9 +102,9 @@ Storage persistence on Swarm is incentivized by postage stamp batches. Batches a
 1. **Does the solution genuinely solve Divya's problem? (4/4)**  
    Yes. Divya can publish her water investigation tonight, copy one permanent link, and share it. When she updates her article next month, readers opening that exact same link will resolve the updated version directly from Swarm.
 2. **Is the permanent-link experience understandable? (4/4)**  
-   Yes. The permanent link uses clear URL hash parameters (`/#/read?owner=...&topic=...`). One-click copy buttons and live preview ensure complete clarity.
+   Yes. The permanent link uses clear URL hash parameters (`/#/read?owner=...&topic=...` and `/#/read/:owner/:topic`). One-click copy buttons and live preview ensure complete clarity.
 3. **Is the application easy to use? (4/4)**  
-   Yes. Professional editorial interface with Markdown support, live draft saving, automatic character/word count, real-time node health indicator, and 1-click sovereign key generation.
+   Yes. Professional editorial interface with safe Markdown support, live draft saving, automatic character/word count, real-time node health indicator, and 1-click sovereign key generation.
 4. **Is the threat model realistic? (4/4)**  
    Yes. The app explicitly details 10 attack vectors, refuses to make false claims of "total censorship immunity", and educates publishers on real-world dependencies (DNS, gateways, postage economics).
 5. **Is the architecture genuinely decentralized? (4/4)**  
@@ -184,7 +175,7 @@ VITE_POSTAGE_BATCH_ID=
 ```bash
 npm test
 ```
-Runs 34 automated unit, integration, and acceptance tests verifying all 8 criteria.
+Runs 42 automated unit, integration, resilience, security, and acceptance tests verifying all 8 criteria.
 
 ### Step 4: Run Development Server
 ```bash
@@ -224,21 +215,22 @@ Verifies that FreePress builds cleanly into static assets in `dist/` with zero b
 
 ---
 
-## 10. Technology Stack
+## 10. 3-Minute Buildathon Demonstration Script
+
+| Timing | Segment | Action / Demonstration Steps |
+|---|---|---|
+| **0:00–0:25** | **Problem Statement** | Introduce Divya's illustrative scenario: an independent community reporter investigating municipal water corruption whose web host, domain registrar, and cloud archive were suspended within 30 days. Highlight the single point of failure. |
+| **0:25–0:50** | **Solution Architecture** | Introduce FreePress. Explain that the entire platform is a **100% static frontend** with zero developer servers. Show how Ethereum Swarm content addressing and signed Swarm Feeds eliminate the need for centralized databases. |
+| **0:50–1:30** | **Live Publishing Workflow** | Open FreePress. Click **Signer Key** to generate a client-side ECDSA key in browser memory. Fill in the article details: *"District Water Supply Contamination Investigation"*. Click **Publish Article to Swarm**. Show the 3-step pipeline: chunk serialization, client-side signing, and feed update. |
+| **1:30–2:05** | **Permanent Reader Link** | Copy the generated Permanent Reader Link (`/#/read?owner=0x...&topic=0x...`). Open it in an incognito/private browser window. Demonstrate that the citizen reader retrieves and renders the article directly from Swarm without needing a Web3 wallet. |
+| **2:05–2:35** | **Dynamic Update Demonstration** | Return to the publisher dashboard. Click **Update Article**. Add new lab sample findings to the investigation. Click **Update Article on Swarm Feed**. Switch back to the reader window, click **Refresh Feed**, and show the new content rendered through the exact same URL. |
+| **2:35–3:00** | **Censorship Resilience Audit** | Open the **Threat Model** page. Explain the 10 failure points audit and show that even if the developer's hosting domain is seized, the static app can run from any mirror, IPFS, or local disk, while the Swarm feed pointer remains permanent and sovereign. |
+
+---
+
+## 11. Technology Stack
 * **Frontend:** React 19, TypeScript, Vite, Tailwind CSS v4, Lucide React, React Router 7
 * **Decentralized Storage:** Ethereum Swarm, `@ethersphere/bee-js` SDK, Swarm Feeds, Single Owner Chunks (SOC), Postage Batches
 * **Cryptographic Signatures:** `ethers` v6 (ECDSA secp256k1 client-side key derivation & feed signing)
 * **Testing:** Vitest, Testing Library, JSDOM
 * **Linter & Code Quality:** Oxlint, TypeScript strict mode
-
----
-
-## 11. Git Commands & Repository Deployment
-
-```bash
-git add .
-git commit -m "feat: complete FreePress censorship-resistant publishing MVP on Ethereum Swarm"
-git branch -M main
-git push -u origin main
-```
-Repository: [https://github.com/nikitabiradar231/Censorship-Free-World](https://github.com/nikitabiradar231/Censorship-Free-World)

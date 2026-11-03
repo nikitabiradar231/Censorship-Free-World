@@ -51,3 +51,4 @@ describe('TEST 5: Configurable Bee Node & Gateway URL', () => {
     expect(client2.url).toBe('http://node-beta:1633');
   });
 });
+

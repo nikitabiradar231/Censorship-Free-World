@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams, useParams, Link } from 'react-router-dom';
 import {
   BookOpen,
   RefreshCw,
@@ -17,13 +17,15 @@ import { resolveAndFetchArticleFromFeed, fetchArticleFromSwarm } from '../servic
 import { useSwarmConfig } from '../hooks/useSwarmConfig';
 import { formatDate, shortenHash } from '../utils/formatters';
 import { CopyLinkButton } from '../components/CopyLinkButton';
+import { SafeMarkdown } from '../components/SafeMarkdown';
 
 export const Reader: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const routeParams = useParams<{ owner?: string; topic?: string }>();
   const { config } = useSwarmConfig();
 
-  const ownerParam = searchParams.get('owner') || '';
-  const topicParam = searchParams.get('topic') || '';
+  const ownerParam = routeParams.owner || searchParams.get('owner') || '';
+  const topicParam = routeParams.topic || searchParams.get('topic') || '';
   const refParam = searchParams.get('ref') || '';
 
   const [inputOwner, setInputOwner] = useState(ownerParam);
@@ -35,6 +37,13 @@ export const Reader: React.FC = () => {
   const [contentSource, setContentSource] = useState<'swarm-bee' | 'swarm-gateway'>('swarm-bee');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync inputs with URL params if changed externally
+  useEffect(() => {
+    if (ownerParam) setInputOwner(ownerParam);
+    if (topicParam) setInputTopic(topicParam);
+    if (refParam) setInputRef(refParam);
+  }, [ownerParam, topicParam, refParam]);
 
   const loadArticle = useCallback(async () => {
     setError(null);
@@ -75,6 +84,17 @@ export const Reader: React.FC = () => {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Check if user pasted a native bzz:// URL (e.g. bzz://0x<owner>/<topic>)
+    const cleanOwner = inputOwner.trim();
+    if (cleanOwner.startsWith('bzz://')) {
+      const parts = cleanOwner.replace('bzz://', '').split('/').filter(Boolean);
+      if (parts.length >= 2) {
+        setSearchParams({ owner: parts[0], topic: parts[1] });
+        return;
+      }
+    }
+
     if (inputOwner && inputTopic) {
       setSearchParams({ owner: inputOwner.trim(), topic: inputTopic.trim() });
     } else if (inputRef) {
@@ -108,7 +128,7 @@ export const Reader: React.FC = () => {
                 type="text"
                 value={inputOwner}
                 onChange={e => setInputOwner(e.target.value)}
-                placeholder="0x..."
+                placeholder="0x... or bzz://<owner>/<topic>"
                 className="w-full px-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 placeholder-slate-600 font-mono text-xs focus:outline-none focus:border-cyan-500"
               />
             </div>
@@ -282,9 +302,8 @@ export const Reader: React.FC = () => {
               </div>
             )}
 
-            <div className="prose prose-invert prose-slate max-w-none text-slate-200 text-sm md:text-base leading-relaxed space-y-4 whitespace-pre-line font-serif">
-              {article.content}
-            </div>
+            {/* Safe XSS-Protected Markdown Content */}
+            <SafeMarkdown content={article.content} />
           </div>
         </article>
       )}

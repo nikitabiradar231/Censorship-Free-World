@@ -93,3 +93,4 @@ describe('Validation & Serialization Utilities', () => {
     expect(isValidUrl('invalid-url')).toBe(false);
   });
 });
+
